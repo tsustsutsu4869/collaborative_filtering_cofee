@@ -2,23 +2,22 @@ import pandas as pd
 import numpy as np
 import random
 
+import csv
+import datetime
+
+
 df_blend = pd.read_csv("./documents/indesign/cofee_blend.csv", encoding = "utf_8")
 df_taste = pd.read_csv("./documents/indesign/blend_feature.csv", encoding = "utf_8")
 
+use_counts = 0
 
-
-
-morning_flag = 0
-use_counts = 1
-
-#初めての使用時は、黄金比と呼ばれるブレンドをおすすめ
-if use_counts ==0:
-    recomend_base_beans={"name":"colo", "ratio":4}
+# #初めての使用時は、黄金比と呼ばれるブレンドをおすすめ
+# if use_counts ==0:
+#     recomend_base_beans={"name":"colo", "ratio":4}
 
 
 # base_name = "colo"
 # base_ratio = 4
-
 
 
 def decide_blend_ratio(user_data, candidate_data, star):
@@ -32,12 +31,11 @@ def decide_blend_ratio(user_data, candidate_data, star):
             
     user_blend_taste = create_blend_taste_data(user_blend_list)  #味のスコア化をしたデータを持ってくる
     averaging_blend_taste = np.sum(user_blend_taste, axis=0) / len(user_blend_taste)   #平均取る
-
+    
     candidate_blend_list = candidate_data['blend'].values.tolist()
     candidate_blend_taste = create_blend_taste_data(candidate_blend_list)
-
+          
     similarities = get_correlation_coefficents(candidate_blend_taste, averaging_blend_taste, star)   #類似度を計算
-    print(similarities)
     selected_blend_name = candidate_blend_list[similarities[0][0]]
     
     return selected_blend_name
@@ -46,6 +44,7 @@ def decide_blend_ratio(user_data, candidate_data, star):
 
 def create_blend_taste_data(blend_list):
     candidate_blend_taste = pd.DataFrame(data=None, index=None, columns=None, dtype=None, copy=False)
+
     for blend_name in blend_list:
         df_blend_taste = df_taste[df_taste['blend'] == blend_name]  
         candidate_blend_taste = pd.concat([candidate_blend_taste, df_blend_taste])     
@@ -72,9 +71,8 @@ def get_correlation_coefficents(candidate_scores, user_score, star):
         return sorted(similarities, key=lambda s: s[1], reverse=False)
         
         
-
 #night phase　　機構側とmorning_phaseに　確定したブレンド配合を渡す
-def night_phase(base_name = colo, base_ratio = 4):  ##初めての使用時は、黄金比と呼ばれるブレンドをおすすめ 
+def night_phase(base_name = 'colo', base_ratio = 4):  ##初めての使用時は、黄金比と呼ばれるブレンドをおすすめ 
     '''
     引数：ベースの豆の名前と割合　(GUIからもらう)
     おすすめを見つけるための処理　
@@ -86,7 +84,7 @@ def night_phase(base_name = colo, base_ratio = 4):  ##初めての使用時は�
     
     df_user = pd.read_csv("./documents/indesign/user_info.csv", encoding = "utf_8")
 
-    df_candidate_blend = df_blend[df_blend[base_beans["name"]] == base_beans["ratio"]]　　　#ベースに合わせて使えるブレンドを絞り込み
+    df_candidate_blend = df_blend[df_blend[base_beans["name"]] == base_beans["ratio"]]   #ベースに合わせて使えるブレンドを絞り込み
     print(df_candidate_blend)
 
     if use_counts ==0:
@@ -116,4 +114,81 @@ def night_phase(base_name = colo, base_ratio = 4):  ##初めての使用時は�
     selected_blend_ratio = df_selected_blend.drop("blend", axis=1).values.tolist()
     print(selected_blend_ratio[0])
     
-    return selected_blend_ratio[0], str_recomend_blend        
+    return selected_blend_ratio[0], str_recomend_blend
+    
+
+
+
+#morning phase　　night_phaseにおすすめベースを渡す。いや、おすすめベースを格納しとく用のテキストファイルがいるのか。
+#決定したブレンドで豆を排出
+#お気に入りのフィードバックが☆として返ってくるので、それを保存
+#今日のブレンドデータをuser_info.csvに追記
+
+#可視化のために、user_info.csvからGUI側に必要情報を提示。渡すときはdictで割合を渡す
+
+#次の夜のおすすめを選択する
+def morning_phase(blend_ratio, blend_name):
+    now = datetime.datetime.now()
+    ymd ='{0:%Y%m%d}'.format(now)
+    time='{0:%H%M}'.format(now)
+    star = input()   #GUIからユーザーの評価を受け取る
+    user_info = [ymd, time, blend_name, star]
+    
+    f = open('./documents/indesign/user_info.csv', 'a')
+    writer = csv.writer(f, lineterminator='\n')
+    # 出力
+    writer.writerow(user_info)
+    f.close()
+    
+    global use_counts
+    use_counts+=1
+    
+    #可視化のために、user_info.csvからGUI側に必要情報を提示。渡すときはdictで割合を渡す
+    df_user = pd.read_csv("./documents/indesign/user_info.csv", encoding = "utf_8")
+    '''
+    光田くんと調整
+    '''
+    
+    
+    #夜のベースの豆を選ぶときにオススメするものを決定
+    df_user_favorite = df_user[df_user['star'] == 3]
+    df_user_hated = df_user[df_user['star'] == 1]
+
+    if(len(df_user_favorite) != 0):
+        str_recomend_blend = decide_blend_ratio(df_user_favorite, df_blend, 3)
+        print(str_recomend_blend)
+    elif(len(df_user_hated) != 0):
+        str_recomend_blend = decide_blend_ratio(df_user_hated, df_blend, 1)
+        print(str_recomend_blend)
+    else:
+        str_recomend_blend = df_blend.sample().iat[0, 0]   #好きも嫌いもないということなので、次はランダムに選ぶ
+        print(str_recomend_blend)
+
+
+    df_selected_blend = df_blend[df_blend['blend'] == str_recomend_blend]
+    selected_blend_ratio = df_selected_blend.drop("blend", axis=1).values.tolist()
+    
+    selected_base_name = df_selected_blend.columns[selected_blend_ratio[0].index(max(selected_blend_ratio[0]))+1]
+    print(selected_base_name)
+    
+    return  selected_base_name, max(selected_blend_ratio[0])
+    
+
+if __name__ == "__main__":
+    ratio, blend = night_phase()
+    print("--",ratio, blend)
+    base_name, base_ratio = morning_phase(ratio, blend)
+    print("--",base_name, base_ratio)
+    print("use_count=",use_counts)
+    ratio, blend = night_phase(base_name, base_ratio)
+    print("--",ratio, blend)
+    base_name, base_ratio = morning_phase(ratio, blend)
+    print("--",base_name, base_ratio)
+    print("use_count=",use_counts)
+    ratio, blend = night_phase(base_name, base_ratio)
+    print("--",ratio, blend)
+    base_name, base_ratio = morning_phase(ratio, blend)
+    print("--",base_name, base_ratio)
+    
+#     base_name, base_ratio = morning_phase([3,3,4,0,0,3,0] ,'colo4bra3moch3')
+#     print("--",base_name, base_ratio)
