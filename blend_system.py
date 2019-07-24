@@ -76,7 +76,12 @@ def night_phase(base_name = 'colo', base_ratio = 4):  ##初めての使用時は
     '''
     引数：ベースの豆の名前と割合　(GUIからもらう)
     おすすめを見つけるための処理　
-    出力：要素6つのリスト。前からブラジルの割合、コロンビアの割合,,,って感じで渡す。
+    出力：・selected_blend_ratio[0]：
+	　　　　　ブレンドの割合。要素6つのリスト。前からブラジルの割合、コロンビアの割合,,,って感じで渡す。
+	     順番(bra, colo, gua, man, moch, kili)
+		・str_recomend_blend：
+		　ブレンドの名前　ex) colo4bra3moch3
+		 
     '''
     base_beans={}  #ベースの豆情報を格納するdict。name:豆の種類(bra, colo, gua, man, moch, kili), ratio:豆の割合。1セットのブレンドのratio合計が10になる
     base_beans["name"] = base_name
@@ -119,15 +124,24 @@ def night_phase(base_name = 'colo', base_ratio = 4):  ##初めての使用時は
 
 
 
+
+
 #morning phase　　night_phaseにおすすめベースを渡す。いや、おすすめベースを格納しとく用のテキストファイルがいるのか。
 #決定したブレンドで豆を排出
 #お気に入りのフィードバックが☆として返ってくるので、それを保存
 #今日のブレンドデータをuser_info.csvに追記
 
-#可視化のために、user_info.csvからGUI側に必要情報を提示。渡すときはdictで割合を渡す
+#可視化のために、user_info.csvからGUI側に必要情報を提示。渡すときはdict(いや、リストでいいか)で割合を渡す
 
 #次の夜のおすすめを選択する
 def morning_phase(blend_ratio, blend_name):
+'''
+引数：・ブレンドの割合要素6つのリスト。前からブラジルの割合、コロンビアの割合,,,って感じで渡す。
+	　順番(bra, colo, gua, man, moch, kili)
+	・ブレンドの名前　ex) colo4bra3moch3
+出力：・selected_base_name：ベースの豆の名前　（str）
+    ・max(selected_blend_ratio[0])：ベースの豆の割合 (int)　
+'''
     now = datetime.datetime.now()
     ymd ='{0:%Y%m%d}'.format(now)
     time='{0:%H%M}'.format(now)
@@ -147,6 +161,7 @@ def morning_phase(blend_ratio, blend_name):
     df_user = pd.read_csv("./documents/indesign/user_info.csv", encoding = "utf_8")
     '''
     光田くんと調整
+	前回のブレンドの割合と今日のブレンドの割合を渡す。
     '''
     
     
